@@ -1,4 +1,3 @@
-import time
 from secrets import choice
 
 import cloudscraper
@@ -7,21 +6,17 @@ import requests
 from lxml import html
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from requests.exceptions import ProxyError
-
 from zentrada_eu.main import Functions, DataWriter
 
 
 class Products(Functions, DataWriter):
     def __init__(self):
         super(Products, self).__init__()
-        self.proxy_status = ''
-        self.status = ''
         # self.scrape_all_urls()
         # self.init_links()
         # self.scrape_all_products()
-        # self.scrape_product()
-        self.scrape_all_prod_multithreading()
+        self.scrape_product()
+        # self.scrape_all_prod_multithreading()
 
     def init_links(self):
 
@@ -95,11 +90,11 @@ class Products(Functions, DataWriter):
 
         self.main_output()
 
-    def load_urls(self):
+    @staticmethod
+    def load_urls():
         with open(r'C:\Users\dklec\PycharmProjects\Zentrada\files\urls1.txt', 'r') as f:
-        # with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\zentrada_urls.csv', 'r') as f:
             urls = f.readlines()
-        urls = [x.replace('"', '').replace('\n', '') for x in urls]
+        urls = [x.replace('\n', '') for x in urls]
         return urls
 
     def scrape_all_prod_multithreading(self):
@@ -107,93 +102,94 @@ class Products(Functions, DataWriter):
 
         threads, result = [], []
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             [threads.append(executor.submit(self.scrape_product, url)) for url in urls]
 
             for i, task in enumerate(as_completed(threads)):
-                print(f"{i} / {len(threads)} Logged: {self.proxy_status}")
-                time.sleep(0.1)
-                result.extend(task.result())
+                print(f"{i} / {len(threads)}")
+                task.result()
 
         self.main_output()
 
-    def scrape_product(self, url):
+    def scrape_product(self):
         data = {}
-
+        urls = self.load_urls()
         s = cloudscraper.create_scraper()
-        proxy = self.load_proxies()
-        resp = s.get(url, proxies=proxy)
 
-        if 'Kamil Wiktor' in resp.text:
+        for i, url in enumerate(urls):
 
-            # with open('working_proxy.txt', 'a') as f:
-            #     f.write(f'{str(proxy)}\n')
+            proxy = self.load_proxies()
+            resp = s.get(url, proxies=proxy)
 
-            category = "//div[@id='bredCrums']//text()"
+            print(f"{i} / {len(urls)}")
 
-            title = "//h1[@class='ym-mt5 ym-mb5']//text()"
-            images = "//div[@class='innerBox']//div[contains(@class, 'detailImage')]//img/@src"
+            if 'wiktorowski.dev@gmail.com' in resp.text:
 
-            packing_units = "//table[@class='shoppingCartTable']//td[@class='slidingB1']/text()"
-            pieces = "//table[@class='shoppingCartTable']//td[@class='slidingB2']/text()"
-            price_piece = "//table[@class='shoppingCartTable']//td[@class='slidingB3']/text()"
-            net_value = "//table[@class='shoppingCartTable']//td[@class='slidingB4']/text()"
+                # print('YESSSS')
+                # continue
+                # with open('working_proxy.txt', 'a') as f:
+                #     f.write(f'{str(proxy)}\n')
 
-            additional_details = "//table[@class='shoppingCartTable']//td[@colspan]//text()"
+                category = "//div[@id='bredCrums']//text()"
 
-            details_info_details_1 = "//div[@class='detailInfo ym-mt30']//text()"
-            details_info_details_2 = "//div[@class='detailInfo ym-mb30']//text()"
+                title = "//h1[@class='ym-mt5 ym-mb5']//text()"
+                images = "//div[@class='innerBox']//div[contains(@class, 'detailImage')]//img/@src"
 
-            specification = "//p/../ul//li//text()"
+                packing_units = "//table[@class='shoppingCartTable']//td[@class='slidingB1']/text()"
+                pieces = "//table[@class='shoppingCartTable']//td[@class='slidingB2']/text()"
+                price_piece = "//table[@class='shoppingCartTable']//td[@class='slidingB3']/text()"
+                net_value = "//table[@class='shoppingCartTable']//td[@class='slidingB4']/text()"
 
-            details_left = "//div[@class='detailLeft']//table[@id='articleInfo']//text()"
-            details_right = "//div[@class='detailRight']//text()"
+                additional_details = "//table[@class='shoppingCartTable']//td[@colspan]//text()"
 
-            category = self.extract(resp.text, category)
-            title = self.extract(resp.text, title)
-            images = html.fromstring(resp.text).xpath(images)
-            packing_units = self.extract(resp.text, packing_units)
-            pieces = self.extract(resp.text, pieces)
-            price_piece = self.extract(resp.text, price_piece)
-            net_value = self.extract(resp.text, net_value)
-            additional_details = self.extract(resp.text, additional_details)
-            details_info_details_1 = self.extract(resp.text, details_info_details_1)
-            details_info_details_2 = self.extract(resp.text, details_info_details_2)
-            specification = self.extract(resp.text, specification)
-            details_left = self.extract(resp.text, details_left)
-            details_right = self.extract(resp.text, details_right)
+                details_info_details_1 = "//div[@class='detailInfo ym-mt30']//text()"
+                details_info_details_2 = "//div[@class='detailInfo ym-mb30']//text()"
 
-            properties = {
-                'Link': url,
-                'Category path': category,
-                'Title': title,
-                'Packing Units (PUs)': packing_units,
-                'Pieces': pieces,
-                'Price/Piece': price_piece,
-                'Net Value': net_value,
-                'Additional Details': additional_details,
-                'Info Details 1': details_info_details_1,
-                'Info Details 2': details_info_details_2,
-                'Specification': specification,
-                'Details Left': details_left,
-                'Details Right': details_right,
-            }
+                specification = "//p/../ul//li//text()"
 
-            for k, v in properties.items():
-                data[k] = v
+                details_left = "//div[@class='detailLeft']//table[@id='articleInfo']//text()"
+                details_right = "//div[@class='detailRight']//text()"
 
-            for idx, x in enumerate(images):
-                data[f'Image {idx+1}'] = x
+                category = self.extract(resp.text, category)
+                title = self.extract(resp.text, title)
+                images = html.fromstring(resp.text).xpath(images)
+                packing_units = self.extract(resp.text, packing_units)
+                pieces = self.extract(resp.text, pieces)
+                price_piece = self.extract(resp.text, price_piece)
+                net_value = self.extract(resp.text, net_value)
+                additional_details = self.extract(resp.text, additional_details)
+                details_info_details_1 = self.extract(resp.text, details_info_details_1)
+                details_info_details_2 = self.extract(resp.text, details_info_details_2)
+                specification = self.extract(resp.text, specification)
+                details_left = self.extract(resp.text, details_left)
+                details_right = self.extract(resp.text, details_right)
 
-            self.products_output(data)
-            self.proxy_status = 'YES'
-            return data
+                properties = {
+                    'Link': url,
+                    'Category path': category,
+                    'Title': title,
+                    'Packing Units (PUs)': packing_units,
+                    'Pieces': pieces,
+                    'Price/Piece': price_piece,
+                    'Net Value': net_value,
+                    'Additional Details': additional_details,
+                    'Info Details 1': details_info_details_1,
+                    'Info Details 2': details_info_details_2,
+                    'Specification': specification,
+                    'Details Left': details_left,
+                    'Details Right': details_right,
+                }
 
-        else:
-            self.proxy_status = 'NO'
-            # with open('working_proxy.txt', 'a') as f:
-            #     f.write(f'{str(proxy)}\n')
-            return ['not', 'working']
+                for k, v in properties.items():
+                    data[k] = v
+
+                for idx, x in enumerate(images):
+                    data[f'Image {idx+1}'] = x
+
+                self.products_output(data)
+
+            else:
+                print('NO')
 
     @staticmethod
     def load_proxies():
@@ -203,6 +199,7 @@ class Products(Functions, DataWriter):
             proxies = [x for x in proxies if x]
             proxies = [f'{p.split(":")[2]}:{p.split(":")[3]}@{p.split(":")[0]}:{p.split(":")[1]}' for p in proxies]
             proxies = [{'http': f'http://{i}', 'https': f'https://{i}'} for i in proxies]
+            # proxies = [{'http': f'http://{i}'} for i in proxies]
         return choice(proxies)
 
 

@@ -6,7 +6,7 @@ class ScraperCore(DataWriter):
     def __init__(self):
         super(ScraperCore, self).__init__()
         self.scraper_run()
-        self.main_output()
+        # self.main_output()
 
     @staticmethod
     def scraper_run():
@@ -14,6 +14,7 @@ class ScraperCore(DataWriter):
         Run all sub_classes
         """
         Products()
+
 
 if __name__ == '__main__':
     ScraperCore()

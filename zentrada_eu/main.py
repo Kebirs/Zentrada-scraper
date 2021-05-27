@@ -1,11 +1,6 @@
-import os
 import cloudscraper
 import pandas as pd
-
-import xlsxwriter
-
 from lxml import html
-
 
 
 class ListsInit(object):
@@ -19,7 +14,6 @@ class ListsInit(object):
 
 
 products = []
-
 
 
 class DataWriter(ListsInit):
