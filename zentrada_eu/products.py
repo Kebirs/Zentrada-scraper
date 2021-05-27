@@ -14,10 +14,13 @@ from zentrada_eu.main import Functions, DataWriter
 class Products(Functions, DataWriter):
     def __init__(self):
         super(Products, self).__init__()
+        self.proxy_status = ''
         self.status = ''
         # self.scrape_all_urls()
         # self.init_links()
-        self.scrape_all_products()
+        # self.scrape_all_products()
+        # self.scrape_product()
+        self.scrape_all_prod_multithreading()
 
     def init_links(self):
 
@@ -67,14 +70,14 @@ class Products(Functions, DataWriter):
         root_urls = "//div[@id='productgroupLeft']//a/@href"
         root_urls = html.fromstring(resp.text).xpath(root_urls)
 
-        threads, result = [], []
-
-        with ThreadPoolExecutor(max_workers=30) as executor:
-            [threads.append(executor.submit(self.init_links, url)) for url in root_urls]
-
-            for i, task in enumerate(as_completed(threads)):
-                print(f"ROOT {i} / {len(threads)}")
-                result.extend(task.result())
+        # threads, result = [], []
+        #
+        # with ThreadPoolExecutor(max_workers=30) as executor:
+        #     [threads.append(executor.submit(self.init_links, url)) for url in root_urls]
+        #
+        #     for i, task in enumerate(as_completed(threads)):
+        #         print(f"ROOT {i} / {len(threads)}")
+        #         result.extend(task.result())
 
     def scrape_all_products(self):
         with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\zentrada_urls.csv', 'r') as f:
@@ -90,79 +93,110 @@ class Products(Functions, DataWriter):
 
         self.main_output()
 
+    def load_urls(self):
+        with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\zentrada_urls.csv', 'r') as f:
+            urls = f.readlines()
+        urls = urls[1:]
+        urls = [x.replace('"', '').replace('\n', '') for x in urls]
+        return urls
+
+    def scrape_all_prod_multithreading(self):
+        urls = self.load_urls()
+
+        threads, result = [], []
+
+        with ThreadPoolExecutor(max_workers=30) as executor:
+            [threads.append(executor.submit(self.scrape_product, url)) for url in urls]
+
+            for i, task in enumerate(as_completed(threads)):
+                print(f"{i} / {len(threads)} Logged: {self.proxy_status}")
+                result.extend(task.result())
+
+        self.main_output()
+
     def scrape_product(self, url):
         data = {}
-
         s = cloudscraper.create_scraper()
-        resp = s.get(url)
-        self.status = resp.status_code
-        print(resp.text)
 
-        category = "//div[@id='bredCrums']//text()"
+        # urls = self.load_urls()
+        # for idx, url in enumerate(urls):
+        proxy = self.load_proxies()
+        resp = s.get(url, proxies=proxy)
+        #     # self.status = resp.status_code
+        #     print(f'{idx+1} / {len(urls)} Logged: {self.proxy_status} |{resp.status_code}')
 
-        title = "//h1[@class='ym-mt5 ym-mb5']//text()"
-        images = "//div[@class='innerBox']//div[contains(@class, 'detailImage')]//img/@src"
+        if 'Kamil Wiktor' in resp.text:
 
-        packing_units = "//table[@class='shoppingCartTable']//td[@class='slidingB1']/text()"
-        pieces = "//table[@class='shoppingCartTable']//td[@class='slidingB2']/text()"
-        price_piece = "//table[@class='shoppingCartTable']//td[@class='slidingB3']/text()"
-        net_value = "//table[@class='shoppingCartTable']//td[@class='slidingB4']/text()"
+            category = "//div[@id='bredCrums']//text()"
 
-        additional_details = "//table[@class='shoppingCartTable']//td[@colspan]//text()"
+            title = "//h1[@class='ym-mt5 ym-mb5']//text()"
+            images = "//div[@class='innerBox']//div[contains(@class, 'detailImage')]//img/@src"
 
-        details_info_details_1 = "//div[@class='detailInfo ym-mt30']//text()"
-        details_info_details_2 = "//div[@class='detailInfo ym-mb30']//text()"
+            packing_units = "//table[@class='shoppingCartTable']//td[@class='slidingB1']/text()"
+            pieces = "//table[@class='shoppingCartTable']//td[@class='slidingB2']/text()"
+            price_piece = "//table[@class='shoppingCartTable']//td[@class='slidingB3']/text()"
+            net_value = "//table[@class='shoppingCartTable']//td[@class='slidingB4']/text()"
 
-        specification = "//p/../ul//li//text()"
+            additional_details = "//table[@class='shoppingCartTable']//td[@colspan]//text()"
 
-        details_left = "//div[@class='detailLeft']//table[@id='articleInfo']//text()"
-        details_right = "//div[@class='detailRight']//text()"
+            details_info_details_1 = "//div[@class='detailInfo ym-mt30']//text()"
+            details_info_details_2 = "//div[@class='detailInfo ym-mb30']//text()"
 
-        category = self.extract(resp.text, category)
-        title = self.extract(resp.text, title)
-        images = html.fromstring(resp.text).xpath(images)
-        packing_units = self.extract(resp.text, packing_units)
-        pieces = self.extract(resp.text, pieces)
-        price_piece = self.extract(resp.text, price_piece)
-        net_value = self.extract(resp.text, net_value)
-        additional_details = self.extract(resp.text, additional_details)
-        details_info_details_1 = self.extract(resp.text, details_info_details_1)
-        details_info_details_2 = self.extract(resp.text, details_info_details_2)
-        specification = self.extract(resp.text, specification)
-        details_left = self.extract(resp.text, details_left)
-        details_right = self.extract(resp.text, details_right)
+            specification = "//p/../ul//li//text()"
 
-        properties = {
-            'Category path': category,
-            'Title': title,
-            'Packing Units (PUs)': packing_units,
-            'Pieces': pieces,
-            'Price/Piece': price_piece,
-            'Net Value': net_value,
-            'Additional Details': additional_details,
-            'Info Details 1': details_info_details_1,
-            'Info Details 2': details_info_details_2,
-            'Specification': specification,
-            'Details Left': details_left,
-            'Details Right': details_right,
-        }
+            details_left = "//div[@class='detailLeft']//table[@id='articleInfo']//text()"
+            details_right = "//div[@class='detailRight']//text()"
 
-        for k, v in properties.items():
-            data[k] = v
+            category = self.extract(resp.text, category)
+            title = self.extract(resp.text, title)
+            images = html.fromstring(resp.text).xpath(images)
+            packing_units = self.extract(resp.text, packing_units)
+            pieces = self.extract(resp.text, pieces)
+            price_piece = self.extract(resp.text, price_piece)
+            net_value = self.extract(resp.text, net_value)
+            additional_details = self.extract(resp.text, additional_details)
+            details_info_details_1 = self.extract(resp.text, details_info_details_1)
+            details_info_details_2 = self.extract(resp.text, details_info_details_2)
+            specification = self.extract(resp.text, specification)
+            details_left = self.extract(resp.text, details_left)
+            details_right = self.extract(resp.text, details_right)
 
-        for idx, x in enumerate(images):
-            data[f'Image {idx+1}'] = x
+            properties = {
+                'Link': url,
+                'Category path': category,
+                'Title': title,
+                'Packing Units (PUs)': packing_units,
+                'Pieces': pieces,
+                'Price/Piece': price_piece,
+                'Net Value': net_value,
+                'Additional Details': additional_details,
+                'Info Details 1': details_info_details_1,
+                'Info Details 2': details_info_details_2,
+                'Specification': specification,
+                'Details Left': details_left,
+                'Details Right': details_right,
+            }
 
-        self.products_output(data)
+            for k, v in properties.items():
+                data[k] = v
+
+            for idx, x in enumerate(images):
+                data[f'Image {idx+1}'] = x
+
+            self.products_output(data)
+            self.proxy_status = 'YES'
+            return data
+        else:
+            self.proxy_status = 'NO'
+            return ['not', 'working']
 
     @staticmethod
     def load_proxies():
-        with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\proxies_eu.txt') as f:
+        with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\proxies.txt') as f:
             proxies = f.read()
             proxies = proxies.split("\n")
             proxies = [x for x in proxies if x]
             proxies = [f'{p.split(":")[2]}:{p.split(":")[3]}@{p.split(":")[0]}:{p.split(":")[1]}' for p in proxies]
-            # proxies = [{'http': f'http://{i}'} for i in proxies]
             proxies = [{'http': f'http://{i}', 'https': f'https://{i}'} for i in proxies]
         return choice(proxies)
 
