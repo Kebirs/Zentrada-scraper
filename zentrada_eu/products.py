@@ -14,10 +14,10 @@ from zentrada_eu.main import Functions, DataWriter
 class Products(Functions, DataWriter):
     def __init__(self):
         super(Products, self).__init__()
-        self.links_backup = []
+        self.status = ''
         # self.scrape_all_urls()
-        self.init_links()
-        # self.scrape_all_products()
+        # self.init_links()
+        self.scrape_all_products()
 
     def init_links(self):
 
@@ -34,7 +34,6 @@ class Products(Functions, DataWriter):
             print(f'root {i + 1} / {len(root_urls)}')
             static_max_page = 1000
             for page in range(1, static_max_page):
-                time.sleep(random.randint(1, 3))
                 auth['PageNum'] = page
                 auth['CFTOKEN'] = '0,0'
                 auth['CFID'] = ''
@@ -46,11 +45,13 @@ class Products(Functions, DataWriter):
                     print(f'Page {page}')
                     for prod in prods:
                         all_urls.append(prod)
-                        self.links_backup.append(prod)
                         if "9e159929-0b55-4a6b-96e0-ff64e2e4623a" not in prod:
-                            print(self.links_backup)
+                            print(prod)
                 else:
                     break
+            df = pd.DataFrame(all_urls)
+            df.to_csv('zentrada_urls.csv', index=False)
+
         df = pd.DataFrame(all_urls)
         df.to_csv('zentrada_urls.csv', index=False)
         return all_urls
@@ -74,17 +75,28 @@ class Products(Functions, DataWriter):
             for i, task in enumerate(as_completed(threads)):
                 print(f"ROOT {i} / {len(threads)}")
                 result.extend(task.result())
-        print(self.links_backup)
 
     def scrape_all_products(self):
-        urls = self.init_links()
+        with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\zentrada_urls.csv', 'r') as f:
+            urls = f.readlines()
+        urls = urls[1:]
+        urls = [x.replace('"', '').replace('\n', '') for x in urls]
 
-        [self.scrape_product(url) for url in urls]
+        for idx, url in enumerate(urls):
+            self.scrape_product(url)
+            print(f'{idx+1} / {len(urls)} |{self.status}')
+            if idx in [x*1000 for x in range(len(urls))]:
+                self.main_output()
 
-    def scrape_product(self, resp):
+        self.main_output()
+
+    def scrape_product(self, url):
         data = {}
 
-        resp = self.get_response(resp, '', self.load_proxies())
+        s = cloudscraper.create_scraper()
+        resp = s.get(url)
+        self.status = resp.status_code
+        print(resp.text)
 
         category = "//div[@id='bredCrums']//text()"
 
@@ -108,7 +120,7 @@ class Products(Functions, DataWriter):
 
         category = self.extract(resp.text, category)
         title = self.extract(resp.text, title)
-        images = self.extract(resp.text, images)
+        images = html.fromstring(resp.text).xpath(images)
         packing_units = self.extract(resp.text, packing_units)
         pieces = self.extract(resp.text, pieces)
         price_piece = self.extract(resp.text, price_piece)
@@ -123,7 +135,6 @@ class Products(Functions, DataWriter):
         properties = {
             'Category path': category,
             'Title': title,
-            'Images': images,
             'Packing Units (PUs)': packing_units,
             'Pieces': pieces,
             'Price/Piece': price_piece,
@@ -138,6 +149,9 @@ class Products(Functions, DataWriter):
 
         for k, v in properties.items():
             data[k] = v
+
+        for idx, x in enumerate(images):
+            data[f'Image {idx+1}'] = x
 
         self.products_output(data)
 
