@@ -1,12 +1,13 @@
-import random
 import time
 from secrets import choice
 
 import cloudscraper
 import pandas as pd
+import requests
 from lxml import html
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import re
+
+from requests.exceptions import ProxyError
 
 from zentrada_eu.main import Functions, DataWriter
 
@@ -60,8 +61,11 @@ class Products(Functions, DataWriter):
         return all_urls
 
     def scrape_all_urls(self):
+        # 9e159929-0b55-4a6b-96e0-ff64e2e4623a
+        # c97e38a8-6e5d-438e-97f2-3e295ca8ea03
 
-        auth = {'CFID': '9e159929-0b55-4a6b-96e0-ff64e2e4623a',
+        # 342ac053-ec02-4b8e-b2a7-8fafd9c4fa2a
+        auth = {'CFID': '342ac053-ec02-4b8e-b2a7-8fafd9c4fa2a',
                 'CFTOKEN': '0',
                 'PageNum': '1'}
         url = 'https://www.zentrada.eu/'
@@ -88,15 +92,13 @@ class Products(Functions, DataWriter):
         for idx, url in enumerate(urls):
             self.scrape_product(url)
             print(f'{idx+1} / {len(urls)} |{self.status}')
-            if idx in [x*1000 for x in range(len(urls))]:
-                self.main_output()
 
         self.main_output()
 
     def load_urls(self):
-        with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\zentrada_urls.csv', 'r') as f:
+        with open(r'C:\Users\dklec\PycharmProjects\Zentrada\files\urls1.txt', 'r') as f:
+        # with open(r'C:\Users\dklec\PycharmProjects\Zentrada\zentrada_eu\zentrada_urls.csv', 'r') as f:
             urls = f.readlines()
-        urls = urls[1:]
         urls = [x.replace('"', '').replace('\n', '') for x in urls]
         return urls
 
@@ -105,27 +107,27 @@ class Products(Functions, DataWriter):
 
         threads, result = [], []
 
-        with ThreadPoolExecutor(max_workers=30) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             [threads.append(executor.submit(self.scrape_product, url)) for url in urls]
 
             for i, task in enumerate(as_completed(threads)):
                 print(f"{i} / {len(threads)} Logged: {self.proxy_status}")
+                time.sleep(0.1)
                 result.extend(task.result())
 
         self.main_output()
 
     def scrape_product(self, url):
         data = {}
-        s = cloudscraper.create_scraper()
 
-        # urls = self.load_urls()
-        # for idx, url in enumerate(urls):
+        s = cloudscraper.create_scraper()
         proxy = self.load_proxies()
         resp = s.get(url, proxies=proxy)
-        #     # self.status = resp.status_code
-        #     print(f'{idx+1} / {len(urls)} Logged: {self.proxy_status} |{resp.status_code}')
 
         if 'Kamil Wiktor' in resp.text:
+
+            # with open('working_proxy.txt', 'a') as f:
+            #     f.write(f'{str(proxy)}\n')
 
             category = "//div[@id='bredCrums']//text()"
 
@@ -186,8 +188,11 @@ class Products(Functions, DataWriter):
             self.products_output(data)
             self.proxy_status = 'YES'
             return data
+
         else:
             self.proxy_status = 'NO'
+            # with open('working_proxy.txt', 'a') as f:
+            #     f.write(f'{str(proxy)}\n')
             return ['not', 'working']
 
     @staticmethod
