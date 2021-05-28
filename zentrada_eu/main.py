@@ -30,23 +30,25 @@ class DataWriter(ListsInit):
         # writer = pd.ExcelWriter(app_dir + file_path, engine='xlsxwriter')
         writer = pd.ExcelWriter("zentrada-products-output.xlsx", engine='xlsxwriter')
 
-        # Auto adjust column width, text wrap
         for sheet_name, df in dfs.items():
             df.to_excel(writer, sheet_name=sheet_name, index=False)
-            wb = writer.book
-            worksheet = writer.sheets[sheet_name]
-            text_format = wb.add_format({'text_wrap': True, 'valign': 'top'})
-
-            for idx, col in enumerate(df):
-                series = df[col]
-                max_len = max((series.astype(str).map(len).max(),
-                               len(str(series.name)))) + 1
-                if max_len > 100:
-                    worksheet.set_column(idx, idx, max_len / 3, text_format)
-                else:
-                    worksheet.set_column(idx, idx, max_len, text_format)
+            self.adjust_column_size(df, writer, sheet_name)
 
         writer.save()
+
+    @staticmethod
+    def adjust_column_size(df, writer, sheet_name):
+        workbook = writer.book
+        worksheet = writer.sheets[sheet_name]
+        text_format = workbook.add_format({'text_wrap': True, 'valign': 'top'})
+        for idx, col in enumerate(df):
+            series = df[col]
+            max_len = max((series.astype(str).map(len).max(),
+                           len(str(series.name)))) + 1
+            if max_len > 100:
+                worksheet.set_column(idx, idx, max_len / (max_len / 100), text_format)
+            else:
+                worksheet.set_column(idx, idx, max_len, text_format)
 
     @staticmethod
     def clean_df(list_of_dicts):
